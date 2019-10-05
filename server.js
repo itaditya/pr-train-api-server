@@ -79,6 +79,15 @@ async function getTeamMembers(team) {
   });
 }
 
+async function getTeams() {
+  const url = `https://api.github.com/orgs/${GITHUB_ORG}/teams`;
+  return fetch(url, {
+    headers: {
+      Authorization: `token ${GITHUB_TOKEN}`,
+    },
+  });
+}
+
 async function getReviewerData(reviewer) {
   const searchQuery = `q=is:open+is:pr+org:${GITHUB_ORG}+review-requested:${reviewer}`;
   const params = new URLSearchParams({
@@ -110,6 +119,17 @@ function cleanseData(prList) {
 
 polka()
   .use(cors())
+  .get('/api/teams', async (req, res) => {
+    try {
+      const teamsRes = await getTeams();
+      const teamsData = await teamsRes.json();
+      const teamsList = teamsData.map(team => ({ name: team.name, slug: team.slug }));
+      res.end(JSON.stringify({ teamsList }));
+    } catch (error) {
+      res.statusCode = 403;
+      res.end(error.message);
+    }
+  })
   .get('/api/reviewers', async (req, res) => {
     const { team = '' } = req.query;
 
@@ -120,7 +140,6 @@ polka()
           id: 'team-slug:absent',
         });
       }
-
       const reviewerRes = await getTeamMembers(team);
       const reviewerData = await reviewerRes.json();
       const reviewersList = reviewerData.map(reviewer => reviewer.login);
